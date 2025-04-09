@@ -10,15 +10,32 @@ namespace AutomateMangaWithKCC
 {
     class Program
     {
+        private static readonly string continuePrompt = "\n--- Appuyez sur entrée pour continuer";
+
         //[System.AttributeUsage(System.AttributeTargets.Method)]
         [STAThread]
         static void Main(string[] args)
         {
-            Console.WriteLine("Ca va jamais marcher du premier coup mdr");
-            string testFolder = PickWorkingFolder();
-            Console.WriteLine(testFolder);
+            string selectedFolder = PromptSelectFolder();
+            Console.WriteLine(String.Format("Le programme va fonctionner dans {0} \nPour traiter d'autres archives, il faudra relancer le programme et choisir un autre dossier {1}", selectedFolder, continuePrompt));
             Console.ReadLine();
 
+        }
+        private static string PromptSelectFolder()
+        {
+            bool isFolderSelected = false;
+            string folder = null;
+            do
+            {
+                Console.WriteLine("\nSélection du dossier où se trouvent les archives .cbz ou .zip" + continuePrompt);
+                Console.ReadLine();
+                folder = PickWorkingFolder();
+                Console.WriteLine(String.Format("Le dossier sélectionné est : {0} \n→ Est-ce que ça convient ? Tapez 'n' pour choisir un nouveau dossier, sinon, appuyez sur entrée", folder));
+                string userInput = Console.ReadLine();
+                isFolderSelected = userInput == "n" || userInput == "N" ? false : true;
+            } while (!isFolderSelected);
+
+            return folder;
         }
         private static string PickWorkingFolder()
         {
@@ -37,7 +54,7 @@ namespace AutomateMangaWithKCC
                 // ...
             }
             return folderPath;
-            // https://stackoverflow.com/a/50263779
+            // Merci https://stackoverflow.com/a/50263779
         }
     }
 }
