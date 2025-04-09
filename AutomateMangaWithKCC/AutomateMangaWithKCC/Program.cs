@@ -10,48 +10,100 @@ namespace AutomateMangaWithKCC
 {
     class Program
     {
-        private static readonly string continuePrompt = "\n--- Appuyez sur entrée pour continuer";
+        //E:\Hakuneko_Biblio\_dossierDeTravail\for_script_testing
+        private static readonly string continuePrompt = "\n--------- Appuyez sur entrée pour continuer";
+
+        private static string pagePrefix = "yk_cXxX_p00";
+        private static string coverArt;
+
+        private static bool hasCoverArt = false;
 
         //[System.AttributeUsage(System.AttributeTargets.Method)]
         [STAThread]
         static void Main(string[] args)
         {
-            string selectedFolder = PromptSelectFolder();
-            Console.WriteLine(String.Format("Le programme va fonctionner dans {0} \nPour traiter d'autres archives, il faudra relancer le programme et choisir un autre dossier {1}", selectedFolder, continuePrompt));
-            Console.ReadLine();
+            try
+            {
+                string selectedFolder = PromptSelectFolder();
+                Console.WriteLine($"Le programme va fonctionner dans {selectedFolder} \nPour traiter d'autres archives, il faudra relancer le programme et choisir un autre dossier {1}" + continuePrompt);
+                Console.ReadLine();
+
+                Console.WriteLine("S'il est nécessaire d'inclure une première de couverture au KEPUB, mais qui n'est inclue dans aucune des archives, tapez 'y' pour pouvoir la sélectionner");
+                if (Console.ReadLine().ToLower() == "y")
+                {
+                    coverArt = PromptFile();
+                    hasCoverArt = true;
+                }
+
+                Console.WriteLine($"Alrighty : {coverArt}");
+                Console.ReadLine();
+            }
+            catch (Exception e)
+            {
+                Console.Write(e.Message);
+                Console.ReadLine();
+            }
+
 
         }
         private static string PromptSelectFolder()
         {
-            bool isFolderSelected = false;
-            string folder = null;
+            bool isFolderSelected;
+            string folder;
             do
             {
-                Console.WriteLine("\nSélection du dossier où se trouvent les archives .cbz ou .zip" + continuePrompt);
+                Console.WriteLine("\nVous allez sélectionner le dossier où se trouvent les archives .cbz ou .zip" + continuePrompt);
                 Console.ReadLine();
-                folder = PickWorkingFolder();
-                Console.WriteLine(String.Format("Le dossier sélectionné est : {0} \n→ Est-ce que ça convient ? Tapez 'n' pour choisir un nouveau dossier, sinon, appuyez sur entrée", folder));
-                string userInput = Console.ReadLine();
-                isFolderSelected = userInput == "n" || userInput == "N" ? false : true;
+                folder = PromptUserToSelect();
+                Console.WriteLine($"Le dossier sélectionné est : {folder} \n→ Si ça ne convient pas tapez 'n' pour choisir un nouveau dossier, sinon appuyez sur entrée");
+                isFolderSelected = isUserInputValid();
             } while (!isFolderSelected);
 
             return folder;
         }
-        private static string PickWorkingFolder()
+        private static string PromptFile()
         {
-            OpenFileDialog folderBrowser = new OpenFileDialog();
+            bool isFileSelected;
+            string filePath;
+            do
+            {
+                Console.WriteLine("\nVous allez sélectionner le fichier." + continuePrompt);
+                Console.ReadLine();
+                filePath = PromptUserToSelect(false);
+                Console.WriteLine($"Le fichier sélectionné est : {filePath} \n→ Si ça ne convient pas tapez 'n' pour choisir un nouveau fichier, sinon appuyez sur entrée");
+                isFileSelected = isUserInputValid();
+            } while (!isFileSelected);
+
+            return filePath;
+        }
+        private static bool isUserInputValid(string toCheck = "n")
+        {
+            //Méthode pour véridier que l'utilisateur est content de ce qu'il a entré.
+            //Si l'utilisateur n'est pas satisfait de son entrée, il tape "n" ou "N" (par défaut, mais on peut changer le check)
+            string userInput = Console.ReadLine();
+            bool isUserConfirmsInput = userInput.ToLower() == toCheck ? false : true;
+            return isUserConfirmsInput;
+        }
+        private static string PromptUserToSelect(bool isFolder = true)
+        {
+            //Sous entendu : si ce n'est pas un dossier, c'est un fichier
+
+            OpenFileDialog openBrowser = new OpenFileDialog();
             // Set validate names and check file exists to false otherwise windows will
             // not let you select "Folder Selection."
-            folderBrowser.ValidateNames = false;
-            folderBrowser.CheckFileExists = false;
-            folderBrowser.CheckPathExists = true;
+            //openBrowser.ValidateNames = false;
+            //openBrowser.CheckFileExists = false;
+            //openBrowser.CheckPathExists = true;
+            
+            openBrowser.ValidateNames = !isFolder;
+            openBrowser.CheckFileExists = !isFolder;
+            openBrowser.CheckPathExists = isFolder;
             // Always default to Folder Selection.
-            folderBrowser.FileName = "Folder Selection.";
+            openBrowser.FileName = "Selection.";
             string folderPath = "didn't work";
-            if (folderBrowser.ShowDialog() == DialogResult.OK)
+            if (openBrowser.ShowDialog() == DialogResult.OK)
             {
-                folderPath = Path.GetDirectoryName(folderBrowser.FileName);
-                // ...
+                folderPath = isFolder ? Path.GetDirectoryName(openBrowser.FileName) : Path.GetFullPath(openBrowser.FileName);
             }
             return folderPath;
             // Merci https://stackoverflow.com/a/50263779
