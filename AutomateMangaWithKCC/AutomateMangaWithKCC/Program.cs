@@ -24,14 +24,14 @@ namespace AutomateMangaWithKCC
         {
             try
             {
-                string selectedFolder = PromptSelectFolder();
+                string selectedFolder = AskUserToSelectFolder();
                 Console.WriteLine($"Le programme va fonctionner dans {selectedFolder} \nPour traiter d'autres archives, il faudra relancer le programme et choisir un autre dossier {1}" + continuePrompt);
                 Console.ReadLine();
 
                 Console.WriteLine("S'il est nécessaire d'inclure une première de couverture au KEPUB, mais qui n'est inclue dans aucune des archives, tapez 'y' pour pouvoir la sélectionner");
                 if (Console.ReadLine().ToLower() == "y")
                 {
-                    coverArt = PromptFile();
+                    coverArt = AskUserToSelectFile();
                     hasCoverArt = true;
                 }
 
@@ -43,10 +43,8 @@ namespace AutomateMangaWithKCC
                 Console.Write(e.Message);
                 Console.ReadLine();
             }
-
-
         }
-        private static string PromptSelectFolder()
+        private static string AskUserToSelectFolder()
         {
             bool isFolderSelected;
             string folder;
@@ -56,12 +54,12 @@ namespace AutomateMangaWithKCC
                 Console.ReadLine();
                 folder = PromptUserToSelect();
                 Console.WriteLine($"Le dossier sélectionné est : {folder} \n→ Si ça ne convient pas tapez 'n' pour choisir un nouveau dossier, sinon appuyez sur entrée");
-                isFolderSelected = isUserInputValid();
+                isFolderSelected = isUserHappyWithInput();
             } while (!isFolderSelected);
 
             return folder;
         }
-        private static string PromptFile()
+        private static string AskUserToSelectFile()
         {
             bool isFileSelected;
             string filePath;
@@ -71,15 +69,16 @@ namespace AutomateMangaWithKCC
                 Console.ReadLine();
                 filePath = PromptUserToSelect(false);
                 Console.WriteLine($"Le fichier sélectionné est : {filePath} \n→ Si ça ne convient pas tapez 'n' pour choisir un nouveau fichier, sinon appuyez sur entrée");
-                isFileSelected = isUserInputValid();
+                isFileSelected = isUserHappyWithInput();
             } while (!isFileSelected);
 
             return filePath;
         }
-        private static bool isUserInputValid(string toCheck = "n")
+        private static bool isUserHappyWithInput(string toCheck = "n")
         {
             //Méthode pour véridier que l'utilisateur est content de ce qu'il a entré.
             //Si l'utilisateur n'est pas satisfait de son entrée, il tape "n" ou "N" (par défaut, mais on peut changer le check)
+
             string userInput = Console.ReadLine();
             bool isUserConfirmsInput = userInput.ToLower() == toCheck ? false : true;
             return isUserConfirmsInput;
