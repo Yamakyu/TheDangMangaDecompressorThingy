@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Diagnostics;
 
 namespace AutomateMangaWithKCC
 {
@@ -12,6 +13,7 @@ namespace AutomateMangaWithKCC
     {
         //E:\Hakuneko_Biblio\_dossierDeTravail\for_script_testing
         private static readonly string continuePrompt = "\n--------- Appuyez sur entrée pour continuer";
+        private static readonly string path7zExe = "C:/Program Files/7-Zip/7z.exe";
 
         private static string pagePrefix = "yk_cXxX_p00";
         private static string coverArt;
@@ -42,7 +44,15 @@ namespace AutomateMangaWithKCC
                     pagePrefix = AskUserToInputPagePrefix();
                 }
 
-                Console.WriteLine($"Alrighty : {pagePrefix}");
+                string[] cbzFiles = Directory.GetFiles(selectedFolder, "*.cbz", SearchOption.TopDirectoryOnly);
+                string workDir = selectedFolder + "\\workDir";
+                Directory.CreateDirectory(workDir);
+
+                foreach (string archive in cbzFiles)
+                {
+                    Console.WriteLine($"Extracting : \n{archive}");
+                    UnzipFiles(archive, workDir);
+                }
                 Console.ReadLine();
             }
             catch (Exception e)
@@ -163,6 +173,32 @@ namespace AutomateMangaWithKCC
             } while (!isCustomPrefixSet);
 
             return chosenPagePrefix;
+        }
+        private static void UnzipFiles(string zipFilePath, string extractPath)
+        {
+            try
+            {
+                Console.WriteLine($"Extraction de {zipFilePath}");
+                ProcessStartInfo processInfo = new ProcessStartInfo
+                {
+                    FileName = path7zExe,
+                    Arguments = $"x \"{zipFilePath}\" -o\"{extractPath}\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+
+                using (Process process = Process.Start(processInfo))
+                {
+                    process.WaitForExit();
+                }
+
+            }
+            catch (Exception e)
+            {
+                Console.Write(e.Message);
+                Console.ReadLine();
+            }
         }
     }
 }
