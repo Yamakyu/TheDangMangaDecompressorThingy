@@ -60,18 +60,35 @@ namespace AutomateMangaWithKCC
                 Directory.CreateDirectory(workDir);
 
                 int count = 0;
+                string fullPrefix = pagePrefix;     //Sera changé dans le foreach
+
+                if (hasCoverArt)
+                {
+                    // move cover art
+                    FileInfo coverArtFile = new FileInfo(coverArt);
+                    File.Move(coverArtFile.FullName, destFolderCompress + "\\" + fullPrefix + "00" + coverArtFile.Extension);
+                }
 
                 foreach (string archive in cbzFiles)
                 {
                     count++;
                     UnzipFiles(archive, workDir);
-                    RenameAndMoveFiles(workDir, count);
+
+                    if (pagePrefix == defaultPagePrefix)
+                    {
+                        fullPrefix = pagePrefix.Replace("XxX", count.ToString());
+                        Console.WriteLine("New prefix = " + fullPrefix);
+                    }
+                    else
+                    {
+                        fullPrefix = pagePrefix + "c" + count.ToString() + "_p00";
+                    }
+
+                    RenameAndMoveFiles(workDir, count, fullPrefix);
                 }
 
-                if (hasCoverArt)
-                {
-                    // move cover
-                }
+
+                Console.WriteLine("\n\nFINITO");
                 Console.ReadLine();
             }
             catch (Exception e)
@@ -240,22 +257,11 @@ namespace AutomateMangaWithKCC
                 Console.ReadLine();
             }
         }
-        private static void RenameAndMoveFiles(string folder, int chapterCount)
+        private static void RenameAndMoveFiles(string folder, int chapterCount, string prefixWithChapter)
         {
             DirectoryInfo d = new DirectoryInfo(folder);
             FileInfo[] individualPages = d.GetFiles("*", SearchOption.TopDirectoryOnly);
 
-            string prefixWithChapter;
-
-            if(pagePrefix == defaultPagePrefix)
-            {
-                prefixWithChapter = pagePrefix.Replace("XxX", chapterCount.ToString());
-                Console.WriteLine("New prefix = " + prefixWithChapter);
-            }
-            else
-            {
-                prefixWithChapter = pagePrefix + "c" + chapterCount.ToString() + "_p00";
-            }
             int pageCount = 0;
             foreach (FileInfo page in individualPages)
             {
