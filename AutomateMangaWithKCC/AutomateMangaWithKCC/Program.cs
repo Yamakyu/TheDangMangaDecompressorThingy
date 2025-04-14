@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Diagnostics;
 
+// Phind https://www.phind.com/search/cm9g47dm200002a6how64gd6z
+// https://www.webdevtutor.net/blog/c-sharp-zip-file-with-7zip
+
 namespace AutomateMangaWithKCC
 {
     class Program
@@ -14,9 +17,11 @@ namespace AutomateMangaWithKCC
         //E:\Hakuneko_Biblio\_dossierDeTravail\for_script_testing
         private static readonly string continuePrompt = "\n--------- Appuyez sur entrée pour continuer";
         private static readonly string path7zExe = "C:/Program Files/7-Zip/7z.exe";
+        private static string defaultPagePrefix = "yk_cXxX_p00";
 
-        private static string pagePrefix = "yk_cXxX_p00";
+        private static string pagePrefix = defaultPagePrefix;
         private static string coverArt;
+        private static string destFolderCompress;
 
         private static bool hasCoverArt = false;
 
@@ -31,6 +36,11 @@ namespace AutomateMangaWithKCC
                 Console.WriteLine($"Le programme va fonctionner dans {selectedFolder} \nPour traiter d'autres archives, il faudra relancer le programme et choisir un autre dossier" + continuePrompt);
                 Console.ReadLine();
 
+                Console.WriteLine("Comment doit s'appeler l'archive .cbz finale ? Ce ne sera pas le nom du volume sur la liseuse");
+                destFolderCompress = selectedFolder + "\\" + AskUserToInputText(isMangaTitle: true);
+                Console.WriteLine($"L'archive finale sera dans {destFolderCompress}");
+                Directory.CreateDirectory(destFolderCompress);
+
                 Console.WriteLine("S'il est nécessaire d'inclure une première de couverture au KEPUB, mais qui n'est inclue dans aucune des archives, tapez 'y' pour pouvoir la sélectionner");
                 if (Console.ReadLine().ToLower() == "y")
                 {
@@ -41,23 +51,33 @@ namespace AutomateMangaWithKCC
                 Console.WriteLine($"Par défaut, les pages seront nommées {pagePrefix}01.jpg/png, {pagePrefix}02.jpg/png, etc...\n→ Voulez-vous utiliser un 'préfixe' différent ? Si oui, tapez 'y'");
                 if (Console.ReadLine().ToLower() == "y")
                 {
-                    pagePrefix = AskUserToInputPagePrefix();
+                    Console.WriteLine("Entrez le préfixe de votre choix. Vous pouvez aussi ne rien taper pour laisser le préfixe par défaut");
+                    pagePrefix = AskUserToInputText(isMangaTitle : false);
                 }
 
                 string[] cbzFiles = Directory.GetFiles(selectedFolder, "*.cbz", SearchOption.TopDirectoryOnly);
                 string workDir = selectedFolder + "\\workDir";
                 Directory.CreateDirectory(workDir);
 
+                int count = 0;
+
                 foreach (string archive in cbzFiles)
                 {
-                    Console.WriteLine($"Extracting : \n{archive}");
+                    count++;
                     UnzipFiles(archive, workDir);
+                    RenameAndMoveFiles(workDir, count);
+                }
+
+                if (hasCoverArt)
+                {
+                    // move cover
                 }
                 Console.ReadLine();
             }
             catch (Exception e)
             {
                 Console.Write(e.Message);
+                Console.Write(e);
                 Console.ReadLine();
             }
         }
@@ -124,18 +144,19 @@ namespace AutomateMangaWithKCC
             return folderPath;
             // Merci https://stackoverflow.com/a/50263779
         }
-        private static string AskUserToInputPagePrefix()
+        private static string AskUserToInputText(bool isMangaTitle = false)
         {
-            string chosenPagePrefix = pagePrefix;
+            //Si c'est pas un titre de manga, c'est un prefixe.
 
-            bool isCustomPrefixSet = false;
+            string userInput = isMangaTitle ? "" : pagePrefix;
+
+            bool isInputValidAndConfirmed = false;
             do
             {
-                Console.WriteLine("Entrez le préfixe de votre choix. Dans tous les cas, il est conseillé de faire terminer le préfixe par '00'. Vous pouvez aussi ne rien taper pour laisser le préfixe par défaut");
-                chosenPagePrefix = Console.ReadLine();
-                bool isInputEmpty = chosenPagePrefix.Length == 0;
+                userInput = Console.ReadLine();
+                bool isInputEmpty = userInput.Length == 0;
 
-                char[] pagePrefixChars = chosenPagePrefix.ToCharArray();
+                char[] pagePrefixChars = userInput.ToCharArray();
                 Array.Reverse(pagePrefixChars);
 
                 foreach (char character in pagePrefixChars)
@@ -149,40 +170,54 @@ namespace AutomateMangaWithKCC
                     else
                     {
                         isInputEmpty = true;
-                        chosenPagePrefix = "";
+                        userInput = "";
                     }
                 }
 
-                if (isInputEmpty)
+                if (!isMangaTitle)  //Si c'est un prefixe
                 {
-                    Console.WriteLine("Vous n'avez rien écrit, voulez-vous utiliser le préfixe par défaut ? Tapez 'n' pour entrer un préfixe de votre choix");
-                    if (isUserHappyWithInput())
+                    if (isInputEmpty)
                     {
-                        // On tombe dans ce cas si l'utilisateur a tapé autre chose que 'n' quand on lui a demandé s'il voulait utiliser un préfixe
-                        chosenPagePrefix = pagePrefix;
-                        isCustomPrefixSet = true;
-                        Console.WriteLine($"Le préfixe par défaut ser utilisé.");
+                        Console.WriteLine("Vous n'avez rien écrit, voulez-vous utiliser le préfixe par défaut ? Tapez 'n' pour entrer un préfixe de votre choix");
+                        if (isUserHappyWithInput())
+                        {
+                            // On tombe dans ce cas si l'utilisateur a tapé autre chose que 'n' quand on lui a demandé s'il voulait utiliser un préfixe
+                            userInput = pagePrefix;
+                            isInputValidAndConfirmed = true;
+                            Console.WriteLine($"Le préfixe par défaut sera utilisé.");
+                        }
                     }
+                    else
+                    {
+                        Console.WriteLine($"Le préfixe utilisé sera {userInput}. Les pages seront donc nommées selon le modèle {userInput}01.jpg, {userInput}02.jpg,.... \n→ Si cela ne convient pas tapez 'n' pour en choisir un nouveau, sinon appuyez sur entrée");
+                        isInputValidAndConfirmed = isUserHappyWithInput();
+                    } 
                 }
                 else
                 {
-                    Console.WriteLine($"Le préfixe utilisé sera {chosenPagePrefix}. Les pages seront donc nommées selon le modèle {chosenPagePrefix}01.jpg, {chosenPagePrefix}02.jpg,.... \n→ Si cela ne convient pas tapez 'n' pour en choisir un nouveau, sinon appuyez sur entrée");
-                    isCustomPrefixSet = isUserHappyWithInput();
+                    if (isInputEmpty)
+                    {
+                        Console.WriteLine("Vous n'avez rien écrit, recommencez");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Le nom de l'archive finale sera {userInput}.cbz \n→ Si cela ne convient pas tapez 'n' pour recommencer, sinon appuyez sur entrée");
+                        isInputValidAndConfirmed = isUserHappyWithInput();
+                    }
                 }
+            } while (!isInputValidAndConfirmed);
 
-            } while (!isCustomPrefixSet);
-
-            return chosenPagePrefix;
+            return userInput;
         }
-        private static void UnzipFiles(string zipFilePath, string extractPath)
+        private static void UnzipFiles(string archiveFilePath, string extractPath)
         {
             try
             {
-                Console.WriteLine($"Extraction de {zipFilePath}");
+                Console.WriteLine($"Extraction : \n{archiveFilePath}");
                 ProcessStartInfo processInfo = new ProcessStartInfo
                 {
                     FileName = path7zExe,
-                    Arguments = $"x \"{zipFilePath}\" -o\"{extractPath}\"",
+                    Arguments = $"x \"{archiveFilePath}\" -o\"{extractPath}\"",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     CreateNoWindow = true
@@ -191,14 +226,50 @@ namespace AutomateMangaWithKCC
                 using (Process process = Process.Start(processInfo))
                 {
                     process.WaitForExit();
-                }
 
+                    if (process.HasExited)
+                    {
+                        process.Dispose();
+                    }
+                }
             }
             catch (Exception e)
             {
                 Console.Write(e.Message);
+                Console.Write(e);
                 Console.ReadLine();
             }
+        }
+        private static void RenameAndMoveFiles(string folder, int chapterCount)
+        {
+            DirectoryInfo d = new DirectoryInfo(folder);
+            FileInfo[] individualPages = d.GetFiles("*", SearchOption.TopDirectoryOnly);
+
+            string prefixWithChapter;
+
+            if(pagePrefix == defaultPagePrefix)
+            {
+                prefixWithChapter = pagePrefix.Replace("XxX", chapterCount.ToString());
+                Console.WriteLine("New prefix = " + prefixWithChapter);
+            }
+            else
+            {
+                prefixWithChapter = pagePrefix + "c" + chapterCount.ToString() + "_p00";
+            }
+            int pageCount = 0;
+            foreach (FileInfo page in individualPages)
+            {
+                if(page.Name.ToLower().EndsWith(".jpg") || page.Name.ToLower().EndsWith(".png"))
+                {
+                    File.Move(page.FullName, destFolderCompress + "\\" + prefixWithChapter + page.Name);
+                    pageCount++;
+                }
+                else
+                {
+                    File.Delete(page.FullName);
+                }
+            }
+            Console.WriteLine($"Sur ce chapitre, {pageCount} ont été renomées et déplacées.");
         }
     }
 }
