@@ -21,7 +21,8 @@ namespace AutomateMangaWithKCC
 
         private static string pagePrefix = defaultPagePrefix;
         private static string coverArt;
-        private static string destFolderCompress;
+        private static string finalArchiveName;
+        private static string archiveWorkingFolder;
 
         private static bool hasCoverArt = false;
 
@@ -37,9 +38,11 @@ namespace AutomateMangaWithKCC
                 Console.ReadLine();
 
                 Console.WriteLine("Comment doit s'appeler l'archive .cbz finale ? Ce ne sera pas le nom du volume sur la liseuse");
-                destFolderCompress = selectedFolder + "\\" + AskUserToInputText(isMangaTitle: true);
-                Console.WriteLine($"L'archive finale sera dans {destFolderCompress}");
-                Directory.CreateDirectory(destFolderCompress);
+
+                finalArchiveName = AskUserToInputText(isMangaTitle: true);
+                archiveWorkingFolder = selectedFolder + "\\" + finalArchiveName;
+                Console.WriteLine($"L'archive finale sera \\{selectedFolder}\\{finalArchiveName}.cbz.");
+                Directory.CreateDirectory(archiveWorkingFolder);
 
                 Console.WriteLine("S'il est nécessaire d'inclure une première de couverture au KEPUB, mais qui n'est inclue dans aucune des archives, tapez 'y' pour pouvoir la sélectionner");
                 if (Console.ReadLine().ToLower() == "y")
@@ -56,8 +59,8 @@ namespace AutomateMangaWithKCC
                 }
 
                 string[] cbzFiles = Directory.GetFiles(selectedFolder, "*.cbz", SearchOption.TopDirectoryOnly);
-                string workDir = selectedFolder + "\\workDir";
-                Directory.CreateDirectory(workDir);
+                string renamingDir = selectedFolder + "\\renameDir";
+                Directory.CreateDirectory(renamingDir);
 
                 int count = 0;
                 string fullPrefix = pagePrefix;     //Sera changé dans le foreach
@@ -66,13 +69,13 @@ namespace AutomateMangaWithKCC
                 {
                     // move cover art
                     FileInfo coverArtFile = new FileInfo(coverArt);
-                    File.Move(coverArtFile.FullName, destFolderCompress + "\\" + fullPrefix + "00" + coverArtFile.Extension);
+                    File.Move(coverArtFile.FullName, archiveWorkingFolder + "\\" + fullPrefix + "00" + coverArtFile.Extension);
                 }
 
                 foreach (string archive in cbzFiles)
                 {
                     count++;
-                    UnzipFiles(archive, workDir);
+                    DecompressFiles(archive, renamingDir);
 
                     if (pagePrefix == defaultPagePrefix)
                     {
@@ -84,9 +87,11 @@ namespace AutomateMangaWithKCC
                         fullPrefix = pagePrefix + "c" + count.ToString() + "_p00";
                     }
 
-                    RenameAndMoveFiles(workDir, count, fullPrefix);
+                    RenameAndMoveFiles(renamingDir, count, fullPrefix);
                 }
 
+                Console.WriteLine($"Préparation de la nouvelle archive {finalArchiveName}.cbz");
+                CompressToCBZ(archiveWorkingFolder);
 
                 Console.WriteLine("\n\nFINITO");
                 Console.ReadLine();
@@ -226,7 +231,7 @@ namespace AutomateMangaWithKCC
 
             return userInput;
         }
-        private static void UnzipFiles(string archiveFilePath, string extractPath)
+        private static void DecompressFiles(string archiveFilePath, string extractPath)
         {
             try
             {
@@ -235,6 +240,37 @@ namespace AutomateMangaWithKCC
                 {
                     FileName = path7zExe,
                     Arguments = $"x \"{archiveFilePath}\" -o\"{extractPath}\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+
+                using (Process process = Process.Start(processInfo))
+                {
+                    process.WaitForExit();
+
+                    if (process.HasExited)
+                    {
+                        process.Dispose();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.Write(e.Message);
+                Console.Write(e);
+                Console.ReadLine();
+            }
+        }
+        private static void CompressToCBZ(string folderToCompress)
+        {
+            try
+            {
+                Console.WriteLine($"Compression : \n{folderToCompress}");
+                ProcessStartInfo processInfo = new ProcessStartInfo
+                {
+                    FileName = path7zExe,
+                    Arguments = $"a -tzip -mx=9 -mmt=10 \"{folderToCompress}.cbz\" \"{folderToCompress}\\*\"",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     CreateNoWindow = true
@@ -267,7 +303,7 @@ namespace AutomateMangaWithKCC
             {
                 if(page.Name.ToLower().EndsWith(".jpg") || page.Name.ToLower().EndsWith(".png"))
                 {
-                    File.Move(page.FullName, destFolderCompress + "\\" + prefixWithChapter + page.Name);
+                    File.Move(page.FullName, archiveWorkingFolder + "\\" + prefixWithChapter + page.Name);
                     pageCount++;
                 }
                 else
@@ -277,5 +313,6 @@ namespace AutomateMangaWithKCC
             }
             Console.WriteLine($"Sur ce chapitre, {pageCount} ont été renomées et déplacées.");
         }
+
     }
 }
