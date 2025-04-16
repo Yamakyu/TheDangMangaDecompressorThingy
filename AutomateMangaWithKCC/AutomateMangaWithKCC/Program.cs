@@ -17,6 +17,8 @@ namespace AutomateMangaWithKCC
         //E:\Hakuneko_Biblio\_dossierDeTravail\for_script_testing
         private static readonly string continuePrompt = "\n--------- Appuyez sur entrée pour continuer";
         private static readonly string path7zExe = "C:/Program Files/7-Zip/7z.exe";
+
+        private static string pathKCCExe = "C:/Users/Jabar/SOFTWARE/KCC_c2e_7.3.3.exe";
         private static string defaultPagePrefix = "yk_cXxX_p00";
 
         private static string pagePrefix = defaultPagePrefix;
@@ -34,6 +36,12 @@ namespace AutomateMangaWithKCC
             {
                 string selectedFolder = AskUserToSelectFolder();
 
+                Console.WriteLine($"Vérifier l'emplacement de KCC. Emplacement actuel : \n{pathKCCExe}\nSi emplacement incorrect, tapez 'n' pour corriger");
+                if (Console.ReadLine().ToLower() == "n")
+                {
+                    pathKCCExe = AskUserToSelectFile();
+                }
+
                 Console.WriteLine($"Le programme va fonctionner dans {selectedFolder} \nPour traiter d'autres archives, il faudra relancer le programme et choisir un autre dossier" + continuePrompt);
                 Console.ReadLine();
 
@@ -41,7 +49,9 @@ namespace AutomateMangaWithKCC
 
                 finalArchiveName = AskUserToInputText(isMangaTitle: true);
                 archiveWorkingFolder = selectedFolder + "\\" + finalArchiveName;
-                Console.WriteLine($"L'archive finale sera \\{selectedFolder}\\{finalArchiveName}.cbz.");
+                string CBZarchive = archiveWorkingFolder + ".cbz";
+
+                Console.WriteLine($"L'archive finale sera {CBZarchive}");
                 Directory.CreateDirectory(archiveWorkingFolder);
 
                 Console.WriteLine("S'il est nécessaire d'inclure une première de couverture au KEPUB, mais qui n'est inclue dans aucune des archives, tapez 'y' pour pouvoir la sélectionner");
@@ -55,7 +65,7 @@ namespace AutomateMangaWithKCC
                 if (Console.ReadLine().ToLower() == "y")
                 {
                     Console.WriteLine("Entrez le préfixe de votre choix. Vous pouvez aussi ne rien taper pour laisser le préfixe par défaut");
-                    pagePrefix = AskUserToInputText(isMangaTitle : false);
+                    pagePrefix = AskUserToInputText(isMangaTitle: false);
                 }
 
                 string[] cbzFiles = Directory.GetFiles(selectedFolder, "*.cbz", SearchOption.TopDirectoryOnly);
@@ -69,7 +79,8 @@ namespace AutomateMangaWithKCC
                 {
                     // move cover art
                     FileInfo coverArtFile = new FileInfo(coverArt);
-                    File.Move(coverArtFile.FullName, archiveWorkingFolder + "\\" + fullPrefix + "00" + coverArtFile.Extension);
+                    // File.Move(coverArtFile.FullName, archiveWorkingFolder + "\\" + fullPrefix.Replace("XxX", "0") + "00" + coverArtFile.Extension);
+                    File.Copy(coverArtFile.FullName, archiveWorkingFolder + "\\" + fullPrefix.Replace("XxX", "0") + "00" + coverArtFile.Extension);
                 }
 
                 foreach (string archive in cbzFiles)
@@ -92,6 +103,9 @@ namespace AutomateMangaWithKCC
 
                 Console.WriteLine($"Préparation de la nouvelle archive {finalArchiveName}.cbz");
                 CompressToCBZ(archiveWorkingFolder);
+
+                Console.WriteLine("\nAlmost done.....");
+                ConvertWithKCC(CBZarchive);
 
                 Console.WriteLine("\n\nFINITO");
                 Console.ReadLine();
@@ -152,7 +166,7 @@ namespace AutomateMangaWithKCC
             //openBrowser.ValidateNames = false;
             //openBrowser.CheckFileExists = false;
             //openBrowser.CheckPathExists = true;
-            
+
             openBrowser.ValidateNames = !isFolder;
             openBrowser.CheckFileExists = !isFolder;
             openBrowser.CheckPathExists = isFolder;
@@ -213,7 +227,7 @@ namespace AutomateMangaWithKCC
                     {
                         Console.WriteLine($"Le préfixe utilisé sera {userInput}. Les pages seront donc nommées selon le modèle {userInput}01.jpg, {userInput}02.jpg,.... \n→ Si cela ne convient pas tapez 'n' pour en choisir un nouveau, sinon appuyez sur entrée");
                         isInputValidAndConfirmed = isUserHappyWithInput();
-                    } 
+                    }
                 }
                 else
                 {
@@ -293,6 +307,153 @@ namespace AutomateMangaWithKCC
                 Console.ReadLine();
             }
         }
+        private static void ConvertWithKCC(string theCBZ)
+        {
+            try
+            {
+                Console.WriteLine("\n\nVous allez entrer les informations liées au manga");
+
+                Console.WriteLine("\nNom du manga (ne pas inclure le numéro du tome)");
+                string title = Console.ReadLine();
+
+                bool isValidNumber = false;
+                string volume;
+                do
+                {
+                    Console.WriteLine("\nQuel tome ? Entrez un nombre valide");
+                    volume = Console.ReadLine();
+                    isValidNumber = int.TryParse(volume, out int ignoreOutput);
+                } while (!isValidNumber);
+
+                volume = volume.Length == 1 ? "0" + volume : volume;
+
+                Console.WriteLine("\nAuteur(s) ? S'il y en a plusieurs, séparez avec un plus '+' (PAS D'ESPACE ENTRE CHAQUE)");
+                string author = Console.ReadLine();
+                bool hasMultipleAuthors = author.Contains("+") || author.Contains(",");
+
+                Console.WriteLine("\nDessinateur(s) ? S'il y en a plusieurs, séparez avec un plus '+' (PAS D'ESPACE ENTRE CHAQUE)");
+                string artist = Console.ReadLine();
+                bool hasMultipleArtists = artist.Contains("+") || artist.Contains(",");
+
+                List<string> authors = new List<string>();
+                List<string> artists = new List<string>();
+
+                if (hasMultipleAuthors)
+                {
+                    string[] authsArray;
+                    if (author.Contains("+"))
+                    {
+                        authsArray = author.Split('+');
+                    }
+                    else
+                    {
+                        authsArray = author.Split(',');
+                    }
+
+                    foreach (string auth in authsArray)
+                    {
+                        authors.Add(auth);
+                    }
+                }
+                else
+                {
+                    authors.Add(author);
+                }
+
+                if (hasMultipleArtists)
+                {
+                    string[] artistsArray;
+                    if (artist.Contains("+"))
+                    {
+                        artistsArray = artist.Split('+');
+                    }
+                    else
+                    {
+                        artistsArray = artist.Split(',');
+                    }
+
+                    foreach (string art in artistsArray)
+                    {
+                        authors.Add(art);
+                    }
+                }
+                else
+                {
+                    artists.Add(artist);
+                }
+
+                //Concaténation vraiment déguelasse 😩
+                string authorInfo = "";
+                if (hasMultipleAuthors)
+                {
+                    int count = 0;
+                    foreach (string aut in authors)
+                    {
+                        count++;
+                        authorInfo += aut + " & ";
+                    }
+                }
+                else
+                {
+                    authorInfo += authors[0] + " & ";
+                }
+
+                if (hasMultipleArtists)
+                {
+                    int count = 0;
+                    foreach (string art in artists)
+                    {
+                        count++;
+                        authorInfo += art + " &";
+                    }
+                    authorInfo = authorInfo.Remove(authorInfo.Length - 2);
+                }
+                else
+                {
+                    authorInfo += artists[0];
+                }
+
+                Console.WriteLine($"Voici le(s) auteurs : \n{authorInfo}");
+
+                Console.WriteLine($"KCC : \n{theCBZ}");
+
+                string thePath = Path.GetFullPath(theCBZ);
+                string theQuotedPath = $"\"{thePath}\"";
+
+                ProcessStartInfo processInfo = new ProcessStartInfo
+                {
+                    FileName = pathKCCExe,
+                    Arguments = $"-m -s --profile KoC --title \"{title} V{volume}\" --format EPUB --author  \"{authorInfo}\" {theQuotedPath}",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                Console.WriteLine("KCCProcess :");
+                Console.WriteLine($"\n{processInfo.FileName} {processInfo.Arguments}\n");
+
+                Process KCCprocess = Process.Start(processInfo);
+                string KCCoutput = KCCprocess.StandardOutput.ReadToEnd();
+                string KCCerrors = KCCprocess.StandardError.ReadToEnd();
+                KCCprocess.WaitForExit();
+
+                Console.WriteLine($"\nOutput : {KCCoutput}");
+
+                if (KCCprocess.ExitCode != 0)
+                {
+                    Console.WriteLine($"\nErrors : {KCCerrors}");
+                }
+
+                KCCprocess.Dispose();
+            }
+            catch (Exception e)
+            {
+                Console.Write(e.Message);
+                Console.Write(e);
+                Console.ReadLine();
+            }
+        }
         private static void RenameAndMoveFiles(string folder, int chapterCount, string prefixWithChapter)
         {
             DirectoryInfo d = new DirectoryInfo(folder);
@@ -301,7 +462,7 @@ namespace AutomateMangaWithKCC
             int pageCount = 0;
             foreach (FileInfo page in individualPages)
             {
-                if(page.Name.ToLower().EndsWith(".jpg") || page.Name.ToLower().EndsWith(".png"))
+                if (page.Name.ToLower().EndsWith(".jpg") || page.Name.ToLower().EndsWith(".png"))
                 {
                     File.Move(page.FullName, archiveWorkingFolder + "\\" + prefixWithChapter + page.Name);
                     pageCount++;
